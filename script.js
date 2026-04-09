@@ -4,7 +4,7 @@ let currentFilter = 'all';
 let searchTerm = '';
 let currentSort = 'default';
 
-const BACKEND_URL = 'http://127.0.0.1:3000';
+const BACKEND_URL = 'https://sigma-store-2.onrender.com';
 
 async function loadProducts() {
     try {
