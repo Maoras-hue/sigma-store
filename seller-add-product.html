@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Product - Seller Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .product-form {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+        }
+        .product-form input, .product-form select, .product-form textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 16px 0;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .product-form button {
+            background: #e05a2a;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+        }
+        body.dark .product-form {
+            background: #1e1e1e;
+        }
+        body.dark input, body.dark select, body.dark textarea {
+            background: #2a2a2a;
+            border-color: #444;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <a href="index.html" class="logo">σ sigma</a>
+    <div class="nav">
+        <a href="index.html">shop</a>
+        <a href="about.html">about</a>
+        <a href="blog.html">blog</a>
+        <a href="privacy.html">privacy</a>
+        <a href="wishlist.html">wishlist</a>
+        <a href="terms.html">terms</a>
+        <a href="refund.html">refund</a>
+        <a href="seller-dashboard.html">seller</a>
+    </div>
+    <button class="dark-toggle" id="darkToggle">🌙</button>
+    <a href="cart.html" class="cart-btn">cart (<span id="cartCount">0</span>)</a>
+</div>
+
+<main>
+    <div class="container">
+        <h2 style="text-align: center;"> Add New Product</h2>
+        <div class="product-form">
+            <form id="addProductForm" enctype="multipart/form-data">
+                <label>Product Name</label>
+                <input type="text" id="productName" required>
+                
+                <label>Price ($)</label>
+                <input type="number" id="productPrice" step="0.01" required>
+                
+                <label>Category</label>
+                <select id="productCategory">
+                    <option value="digital">Digital</option>
+                    <option value="electronics">Electronics</option>
+                    <option value="clothing">Clothing</option>
+                    <option value="other">Other</option>
+                </select>
+                
+                <label>Stock Quantity</label>
+                <input type="number" id="productStock" value="999">
+                
+                <label>Product Description</label>
+                <textarea id="productDescription" rows="4"></textarea>
+                
+                <label>Product Image</label>
+                <input type="file" id="productImage" accept="image/*" required>
+                
+                <button type="submit">Add Product</button>
+            </form>
+            <div id="message" style="margin-top: 1rem; text-align: center;"></div>
+        </div>
+    </div>
+</main>
+
+<footer>
+    <p>sigma studio — mardan, pk</p>
+</footer>
+
+<script>
+    const API_URL = 'http://127.0.0.1:3000';
+    
+    function updateCartCount() {
+        const cart = JSON.parse(localStorage.getItem('sigma_cart') || '[]');
+        const total = cart.reduce((sum, item) => sum + item.quantity, 0);
+        const badge = document.getElementById('cartCount');
+        if (badge) badge.innerText = total;
+    }
+    
+    document.getElementById('darkToggle')?.addEventListener('click', () => {
+        document.body.classList.toggle('dark');
+        const isDark = document.body.classList.contains('dark');
+        document.getElementById('darkToggle').innerText = isDark ? '☀️' : '🌙';
+        localStorage.setItem('sigma_dark', isDark);
+    });
+    
+    if (localStorage.getItem('sigma_dark') === 'true') {
+        document.body.classList.add('dark');
+        document.getElementById('darkToggle').innerText = '☀️';
+    }
+    
+    document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData();
+        formData.append('name', document.getElementById('productName').value);
+        formData.append('price', document.getElementById('productPrice').value);
+        formData.append('category', document.getElementById('productCategory').value);
+        formData.append('stock', document.getElementById('productStock').value);
+        formData.append('description', document.getElementById('productDescription').value);
+        formData.append('image', document.getElementById('productImage').files[0]);
+        
+        const messageDiv = document.getElementById('message');
+        
+        try {
+            const response = await fetch(`${API_URL}/api/seller/products`, {
+                method: 'POST',
+                credentials: 'include',
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                messageDiv.innerHTML = '<div style="background: #4caf50; color: white; padding: 10px; border-radius: 8px;"> Product added successfully!</div>';
+                document.getElementById('addProductForm').reset();
+                setTimeout(() => {
+                    window.location.href = 'seller-products.html';
+                }, 2000);
+            } else {
+                messageDiv.innerHTML = `<div style="background: #e05a2a; color: white; padding: 10px; border-radius: 8px;"> ${data.error || 'Failed to add product'}</div>`;
+            }
+        } catch(error) {
+            messageDiv.innerHTML = '<div style="background: #e05a2a; color: white; padding: 10px; border-radius: 8px;"> Cannot connect to server</div>';
+        }
+    });
+    
+    updateCartCount();
+</script>
+</body>
+</html>

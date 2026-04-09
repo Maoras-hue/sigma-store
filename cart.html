@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sigma — cart</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="header">
+    <a href="index.html" class="logo">σ SIGMA</a>
+    <div class="nav">
+        <a href="index.html">shop</a>
+        <a href="about.html">about</a>
+        <a href="blog.html">blog</a>
+        <a href="privacy.html">privacy</a>
+        <a href="wishlist.html">wishlist</a>
+        <a href="terms.html">terms</a>
+        <a href="refund.html">refund</a>
+        <a href="track.html">track order</a>
+    </div>
+    <button class="dark-toggle" id="darkToggle">🌙</button>
+    <a href="cart.html" class="cart-btn">cart (<span id="cartCount">0</span>)</a>
+</div>
+
+<main>
+    <div class="container">
+        <h2 style="margin: 1rem 0;">your cart</h2>
+        <div id="cartItems"></div>
+        <div id="cartTotal" style="margin-top: 1.5rem; padding: 1rem; background: white; border-radius: 12px;"></div>
+        
+        <textarea id="orderNotes" placeholder="special requests or build preferences..." style="width:100%; margin:1rem 0; padding:0.8rem; border:1px solid #ddd; border-radius:8px;"></textarea>
+        
+        <div id="whatsappBtnContainer" style="margin-top: 1rem;"></div>
+        
+        <br><br>
+        <a href="index.html" style="color:#e05a2a;">← back to shop</a>
+    </div>
+</main>
+
+<footer>
+    <p>sigma studio — mardan, pk</p>
+    <p>email:sigma@example.com</p>
+</footer>
+
+<script>
+    const BACKEND_URL = 'http://127.0.0.1:3000';
+    const YOUR_WHATSAPP_NUMBER = '923001234567'; 
+    
+    function getCart() {
+        return JSON.parse(localStorage.getItem('sigma_cart') || '[]');
+    }
+    
+    function saveCart(cart) {
+        localStorage.setItem('sigma_cart', JSON.stringify(cart));
+        updateCartCount();
+    }
+    
+    function updateCartCount() {
+        const cart = getCart();
+        const total = cart.reduce((sum, i) => sum + i.quantity, 0);
+        const badge = document.getElementById('cartCount');
+        if (badge) badge.innerText = total;
+    }
+    
+    function renderCart() {
+        const cart = getCart();
+        const container = document.getElementById('cartItems');
+        const btnContainer = document.getElementById('whatsappBtnContainer');
+        
+        if (cart.length === 0) {
+            container.innerHTML = '<p style="padding:40px; text-align:center;">empty cart </p>';
+            document.getElementById('cartTotal').innerHTML = '';
+            btnContainer.innerHTML = '';
+            return;
+        }
+        
+        let subtotal = 0;
+        let html = '';
+        
+        for (let item of cart) {
+            const itemTotal = item.price * item.quantity;
+            subtotal += itemTotal;
+            html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:1rem; border-bottom:1px solid #eee; flex-wrap:wrap; gap:0.5rem;">
+                    <div><strong>${item.name}</strong><br><span style="font-size:0.8rem;">$${item.price} each</span></div>
+                    <div style="display:flex; gap:0.5rem; align-items:center;">
+                        <button onclick="updateQty('${item.id}', -1)" style="padding:0.2rem 0.6rem;">-</button>
+                        <span>${item.quantity}</span>
+                        <button onclick="updateQty('${item.id}', 1)" style="padding:0.2rem 0.6rem;">+</button>
+                        <button onclick="removeItem('${item.id}')" style="background:#e05a2a; border:none; padding:0.2rem 0.6rem; border-radius:4px; color:white;">remove</button>
+                    </div>
+                    <div><strong>$${itemTotal}</strong></div>
+                </div>
+            `;
+        }
+        
+        const shipping = subtotal > 120 ? 0 : 12;
+        const total = subtotal + shipping;
+        
+        container.innerHTML = html;
+        document.getElementById('cartTotal').innerHTML = `
+        <div style="color:black;">
+            <div>subtotal: $${subtotal}</div>
+            <div>shipping: ${shipping === 0 ? 'free' : '$' + shipping}</div>
+            <div style="font-weight:bold; margin-top:8px;">total: $${total}</div>
+            ${subtotal < 120 ? `<small>spend $${120 - subtotal} more for free shipping</small>` : '<small> free shipping</small> </div>'}
+        `;
+        
+        btnContainer.innerHTML = `
+            <button onclick="sendWhatsAppOrder()" style="background:#25D366; color:white; border:none; padding:15px 20px; border-radius:50px; cursor:pointer; font-size:18px; font-weight:bold; width:100%; margin-bottom:10px;">
+                 Order via WhatsApp
+            </button>
+            <div style="background:black; color:white; padding:15px; border-radius:12px; border:1px solid #25D366;">
+                <p><strong> Payment Options:</strong></p>
+                <p>• Easypaisa: <strong>03XX-XXXXXXX</strong></p>
+                <p>• JazzCash: <strong>03XX-XXXXXXX</strong></p>
+                <p>• Bank Transfer: Ask on WhatsApp</p>
+                <p style="margin-top:10px; font-size:0.85rem;"> After payment, you'll receive download link</p>
+            </div>
+        `;
+    }
+    
+    function updateQty(id, delta) {
+        let cart = getCart();
+        const index = cart.findIndex(i => i.id === id);
+        if (index !== -1) {
+            cart[index].quantity += delta;
+            if (cart[index].quantity < 1) cart.splice(index, 1);
+            saveCart(cart);
+            renderCart();
+        }
+    }
+    
+    function removeItem(id) {
+        let cart = getCart();
+        cart = cart.filter(i => i.id !== id);
+        saveCart(cart);
+        renderCart();
+    }
+    
+    async function sendWhatsAppOrder() {
+        const cart = getCart();
+        if (cart.length === 0) {
+            alert('Cart is empty!');
+            return;
+        }
+        
+        // Check if user is logged in
+        let isLoggedIn = false;
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/me`, { credentials: 'include' });
+            isLoggedIn = response.ok;
+        } catch(e) {}
+        
+        if (!isLoggedIn) {
+            const confirm = window.confirm('Please login to place order. Go to login page?');
+            if (confirm) window.location.href = 'login.html';
+            return;
+        }
+        
+        let subtotal = 0;
+        let itemsList = '';
+        cart.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            subtotal += itemTotal;
+            itemsList += `${item.name} x ${item.quantity} = $${itemTotal}\n`;
+        });
+        
+        const shipping = subtotal > 120 ? 0 : 12;
+        const total = subtotal + shipping;
+        const notes = document.getElementById('orderNotes').value;
+        
+        try {
+            const orderResponse = await fetch(`${BACKEND_URL}/api/orders`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ items: cart, subtotal, shipping, total, notes })
+            });
+            
+            const orderData = await orderResponse.json();
+            const orderId = orderData.order.orderId;
+            
+            let userName = 'Customer';
+            try {
+                const user = JSON.parse(localStorage.getItem('sigma_user') || 'null');
+                if (user && user.name) userName = user.name;
+            } catch(e) {}
+            
+            const message = ` NEW ORDER #${orderId}\n\n` +
+                           ` Customer: ${userName}\n\n` +
+                           ` ORDER DETAILS:\n${itemsList}\n` +
+                           ` Subtotal: $${subtotal}\n` +
+                           ` Shipping: ${shipping === 0 ? 'Free' : '$' + shipping}\n` +
+                           ` TOTAL: $${total}\n\n` +
+                           ` Notes: ${notes || 'None'}\n\n` +
+                           ` Track: ${window.location.origin}/track.html?order=${orderId}`;
+            
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappUrl = `https://wa.me/${YOUR_WHATSAPP_NUMBER}?text=${encodedMessage}`;
+            window.open(whatsappUrl, '_blank');
+            
+            localStorage.removeItem('sigma_cart');
+            renderCart();
+            updateCartCount();
+            
+            alert(` Order placed!\n Order ID: ${orderId}\n🔗 Save this ID to track your order.`);
+            
+        } catch(error) {
+            console.error('Order error:', error);
+            alert('Failed to place order. Make sure backend is running.');
+        }
+    }
+    
+    // Dark mode
+    document.getElementById('darkToggle')?.addEventListener('click', () => {
+        document.body.classList.toggle('dark');
+        const isDark = document.body.classList.contains('dark');
+        document.getElementById('darkToggle').innerText = isDark ? '☀️' : '🌙';
+        localStorage.setItem('sigma_dark', isDark);
+    });
+    
+    if (localStorage.getItem('sigma_dark') === 'true') {
+        document.body.classList.add('dark');
+        document.getElementById('darkToggle').innerText = '☀️';
+    }
+    
+    renderCart();
+    updateCartCount();
+</script>
+</body>
+</html>

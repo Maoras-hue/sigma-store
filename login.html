@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login - Sigma</title>
+    <style>
+        body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f5f5f5; margin: 0; }
+        .container { background: white; padding: 30px; border-radius: 10px; width: 350px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        h2, h3 { text-align: center; }
+        input { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #e05a2a; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        button:hover { background: #111; }
+        .checkbox { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+        .checkbox input { width: auto; margin: 0; }
+        .error { color: red; margin-top: 10px; text-align: center; }
+        .success { color: green; margin-top: 10px; text-align: center; }
+        hr { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2> Sigma Store</h2>
+        
+        <h3>Login</h3>
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <div class="checkbox">
+            <input type="checkbox" id="rememberMe">
+            <label>Remember me (stay logged in for 30 days)</label>
+        </div>
+        <button onclick="login()">Login</button>
+        <div id="loginMessage"></div>
+        
+        <hr>
+        
+        <h3>Sign Up</h3>
+        <input type="text" id="signupName" placeholder="Full Name">
+        <input type="email" id="signupEmail" placeholder="Email">
+        <input type="password" id="signupPassword" placeholder="Password">
+        <div class="checkbox">
+            <input type="checkbox" id="signupRemember">
+            <label>Remember me</label>
+        </div>
+        <button onclick="signup()">Sign Up</button>
+        <div id="signupMessage"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+        
+        // Check if already logged in
+        const savedToken = localStorage.getItem('authToken');
+        if (savedToken) {
+            fetch(`${API_URL}/api/me`, {
+                headers: { 'Authorization': savedToken }
+            })
+            .then(res => {
+                if (res.ok) {
+                    window.location.href = 'index.html';
+                } else {
+                    localStorage.removeItem('authToken');
+                }
+            });
+        }
+        
+        async function signup() {
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const remember = document.getElementById('signupRemember').checked;
+            const msg = document.getElementById('signupMessage');
+            
+            if (!name || !email || !password) {
+                msg.innerHTML = '<span class="error"> Please fill all fields</span>';
+                return;
+            }
+            
+            msg.innerHTML = 'Creating account...';
+            
+            try {
+                const res = await fetch(`${API_URL}/api/signup`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, remember })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    localStorage.setItem('authToken', data.token);
+                    msg.innerHTML = '<span class="success"> Account created! Redirecting...</span>';
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1500);
+                } else {
+                    msg.innerHTML = '<span class="error"> ' + data.error + '</span>';
+                }
+            } catch(e) {
+                msg.innerHTML = '<span class="error"> Cannot connect to server</span>';
+            }
+        }
+        
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const remember = document.getElementById('rememberMe').checked;
+            const msg = document.getElementById('loginMessage');
+            
+            if (!email || !password) {
+                msg.innerHTML = '<span class="error"> Please enter email and password</span>';
+                return;
+            }
+            
+            msg.innerHTML = 'Logging in...';
+            
+            try {
+                const res = await fetch(`${API_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, remember })
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    localStorage.setItem('authToken', data.token);
+                    msg.innerHTML = '<span class="success"> Login successful! Redirecting...</span>';
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1500);
+                } else {
+                    msg.innerHTML = '<span class="error"> ' + data.error + '</span>';
+                }
+            } catch(e) {
+                msg.innerHTML = '<span class="error"> Cannot connect to server</span>';
+            }
+        }
+    </script>
+</body>
+</html>
